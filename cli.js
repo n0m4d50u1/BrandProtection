@@ -9,7 +9,7 @@ const csv = require('csv');
 const ProgressBar = require('progress');
 const CONF = require('./config');
 const { printError, printInfo, printResult, printBanner, parseTarget, bye } = require('./lib/utils');
-const { DomainFuzz, DomainDict, DomainThread } = require('./lib');
+const { DomainFuzz, DomainDict, DomainThread, DomainPrefSuf } = require('./lib');
 
 const fuzz = (opts, domains, worker) => {
   const total = domains.length;
@@ -67,6 +67,7 @@ as an additional source of targeted threat intelligence.`)
     .option('--modules <module>', 'Enable modules (whois|banners|mxcheck|ssdeep|geoip)', val => val.split(/\W/), [])
     .option('--nameservers <nameservers>', 'comma separated list of nameservers to query', val => val.split(','))
     .option('--dictionary <file>', 'generate additional domains using dictionary FILE')
+    .option('--prefsuf <file>', 'generate additional domains using prefix-suffix FILE')
     .option('--registered', 'show only registered domain names (TODO)')// TODO.
     .option('--can-register', 'show only can register domain names (TODO)')// TODO.
     .parse(process.argv);
@@ -109,6 +110,18 @@ as an additional source of targeted threat intelligence.`)
     domainDict.load_dict(opts.dictionary);
     domainDict.generate();
     domains = domains.concat(domainDict.domains);
+  }
+
+  if (opts.prefsuf) {
+    if (!fs.existsSync(opts.prefsuf)) {
+      printError(`prefix/suffix file not found: ${opts.prefsuf}`);
+      return false;
+    }
+
+    const domainPrefSuf = new DomainPrefSuf(opts.target.host);
+    domainPrefSuf.load_dict(opts.prefsuf);
+    domainPrefSuf.generate();
+    domains = domains.concat(domainPrefSuf.domains);
   }
 
   debug(`Domains: ${JSON.stringify(domains)}`);
